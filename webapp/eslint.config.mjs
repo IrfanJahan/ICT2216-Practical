@@ -27,6 +27,7 @@ export default [
         process: "readonly",
         require: "readonly",
         module: "readonly",
+        __dirname: "readonly",
         fetch: "readonly",
         URLSearchParams: "readonly"
       }
