@@ -1,0 +1,12 @@
+node_modules/
+webapp/node_modules/
+.scannerwork/
+webapp/.scannerwork/
+.env
+token.txt
+*.log
+.DS_Store
+mysql_data/
+sonarqube_data/
+sonarqube_extensions/
+sonarqube_logs/

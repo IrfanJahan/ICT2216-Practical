@@ -1,0 +1,79 @@
+name: Practical DevSecOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  devsecops:
+    name: Integration, Dependency, UI, ESLint, SonarQube
+    runs-on:
+      - self-hosted
+      - windows
+      - x64
+      - practical-node-sql
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Start Docker Compose services
+        shell: powershell
+        run: |
+          docker-compose up -d --build
+          Start-Sleep -Seconds 20
+          curl.exe -k https://127.0.0.1/
+          curl.exe http://127.0.0.1:4444/status
+
+      - name: Dependency check
+        working-directory: webapp
+        run: npm run audit
+
+      - name: ESLint security scan
+        working-directory: webapp
+        run: npm run lint
+
+      - name: Integration testing over HTTPS
+        working-directory: webapp
+        env:
+          APP_URL: https://127.0.0.1
+        run: npm run test:integration
+
+      - name: UI testing over HTTPS
+        working-directory: webapp
+        env:
+          APP_URL: https://nginx
+          SELENIUM_URL: http://127.0.0.1:4444/wd/hub
+        run: npm run test:ui
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
+        with:
+          projectBaseDir: webapp
+          skipSignatureVerification: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+      - name: Cleanup
+        if: always()
+        shell: powershell
+        run: docker-compose down

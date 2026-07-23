@@ -1,0 +1,84 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: practical-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: practical_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ./webapp
+    container_name: practical-webapp
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: practical_db
+      DB_USER: appuser
+      DB_PASSWORD: apppassword
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: 2400710@sit.singaporetech.edu.sg
+      PASSWORD_FILE: /app/data/100k-most-used-passwords-NCSC.txt
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: practical-nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+
+  git:
+    image: alpine/git
+    container_name: practical-git
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+    command: >
+      sh -c "git config --global user.name 'YMd Irfan Bin Shah Jahan' &&
+             git config --global user.email '2400710@sit.singaporetech.edu.sg' &&
+             tail -f /dev/null"
+
+  selenium:
+    image: selenium/standalone-chrome:latest
+    container_name: practical-selenium
+    ports:
+      - "4444:4444"
+    shm_size: "2g"
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: practical-sonarqube
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+volumes:
+  mysql_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
